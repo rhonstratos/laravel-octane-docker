@@ -1,6 +1,6 @@
 # Production-ready Laravel 12+ + Octane Docker Compose
 # Services: FrankenPHP (Octane app), MySQL, Redis
-
+name: laravel-api
 services:
   # FrankenPHP with Octane (high-performance PHP server)
   frankenphp:

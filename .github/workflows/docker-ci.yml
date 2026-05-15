@@ -2,39 +2,46 @@ name: Laravel Docker CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Prepare Environment
-      run: cp .env.example .env
+      - name: Prepare Environment
+        # The pipe (|) allows you to run multiple commands in a single step
+        run: |
+          cp .env.example .env
+          echo "APP_KEY=${{ secrets.APP_KEY }}" >> .env
+          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
+          echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
 
-    - name: Boot the Architecture
-      run: docker compose up -d --build
+      - name: Boot the Architecture
+        run: docker compose up -d --build
 
-    - name: Wait for MySQL to Initialize
-      run: |
-        echo "Waiting for MySQL to be ready..."
-        while ! docker compose exec -T mysql mysqladmin ping -h"localhost" --silent; do
-            sleep 2
-        done
+      - name: Wait for MySQL to Initialize
+        run: |
+          echo "Waiting for MySQL to be ready..."
+          while ! docker compose exec -T mysql mysqladmin ping -h"localhost" --silent; do
+              sleep 2
+          done
 
-    - name: Prepare Laravel
-      run: |
-        docker compose exec -T frankenphp php artisan key:generate
-        docker compose exec -T frankenphp php artisan migrate --force
+      - name: Prepare Laravel
+        run: |
+          docker compose exec -T frankenphp php artisan key:generate
+          docker compose exec -T frankenphp php artisan migrate --force
 
-    - name: Execute Test Suite (Pest/PHPUnit)
-      run: docker compose exec -T frankenphp php artisan test
+      - name: Execute Test Suite (Pest/PHPUnit)
+        run: docker compose exec -T frankenphp php artisan test
 
-    - name: Tear Down
-      if: always()
-      run: docker compose down -v
+      - name: Tear Down
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,62 @@
+# ==========================================
+# STAGE 1: Build PHP Dependencies
+# ==========================================
+FROM composer:2 AS vendor
+WORKDIR /app
+COPY composer.json composer.lock ./
+# Install without dev dependencies or scripts
+RUN composer install --no-interaction --prefer-dist --ignore-platform-reqs --no-dev --no-scripts
+
+# ==========================================
+# STAGE 2: Build Frontend Assets
+# ==========================================
+FROM node:20 AS frontend
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* ./
+RUN npm install -g pnpm && pnpm install
+COPY . .
+# Compile Vite assets (Tailwind, Vue/React, etc.)
+RUN pnpm run build
+
+# ==========================================
+# STAGE 3: Final Production Image
+# ==========================================
+FROM dunglas/frankenphp
+
+# Install required PHP extensions (Notice we added Redis here!)
+RUN install-php-extensions \
+    pcntl \
+    pdo_mysql \
+    curl \
+    mbstring \
+    zip \
+    xml \ 
+    gd \
+    intl \
+    opcache \
+    redis
+
+WORKDIR /app
+
+# Copy application files securely into the image
+COPY . .
+
+RUN cp .env.example .env
+
+# Copy compiled vendor and frontend assets from the previous stages
+COPY --from=vendor /usr/bin/composer /usr/bin/composer
+COPY --from=vendor /app/vendor /app/vendor
+COPY --from=frontend /app/public/build /app/public/build
+
+# Optimize autoloader for production speed
+RUN composer dump-autoload --optimize --classmap-authoritative
+
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
+
+# Ensure Laravel has permission to write to cache/logs
+RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
+
+# Boot Octane in production mode (No --watch flag!)
+ENTRYPOINT ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=80"]

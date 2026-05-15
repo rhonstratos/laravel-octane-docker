@@ -1,0 +1,77 @@
+# Production-ready Laravel 12+ + Octane Docker Compose
+# Services: FrankenPHP (Octane app), MySQL, Redis
+name: laravel-api
+services:
+  frankenphp:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.prod
+    container_name: laravel_api_prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: false
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      CACHE_DRIVER: redis
+      SESSION_DRIVER: mysql
+      #LOG_CHANNEL: stderr
+      # NOTE: In actual production, pass APP_KEY and passwords via GitHub Secrets, not hardcoded!
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: --max-requests=1000
+
+  mysql:
+    image: "mysql:8.4"
+    container_name: mysql_prod
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_prod_data:/var/lib/mysql
+    # No 'ports:' mapping here. It's completely invisible to the outside web.
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: "redis:7-alpine"
+    container_name: redis_prod
+    restart: always
+    volumes:
+      - redis_prod_data:/data
+    # No 'ports:' mapping here either.
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_prod_data:
+  redis_prod_data:
+
+networks:
+  app_network:
+    driver: bridge
