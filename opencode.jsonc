@@ -5,9 +5,10 @@
             "type": "local",
             "enabled": true,
             "command": [
+                // Adjust the path to your Laravel project's artisan file, or reinstall laravel boost in the project
                 "wsl.exe",
                 "/usr/bin/php8.5",
-                "/home/vreiln/projects/ticket-api/artisan",
+                "/home/vreiln/projects/laravel_api/artisan",
                 "boost:mcp"
             ]
         }
