@@ -7,15 +7,17 @@ on:
     branches: ["main"]
 
 jobs:
-  test:
+  # ==========================================
+  # JOB 1: Test Development Environment
+  # ==========================================
+  test-dev:
+    name: Development Architecture
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Prepare Environment
-        # The pipe (|) allows you to run multiple commands in a single step
         run: |
           cp .env.example .env
           echo "APP_KEY=${{ secrets.APP_KEY }}" >> .env
@@ -24,7 +26,7 @@ jobs:
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
 
-      - name: Boot the Architecture
+      - name: Boot Dev Architecture
         run: docker compose up -d --build
 
       - name: Wait for MySQL to Initialize
@@ -35,9 +37,7 @@ jobs:
           done
 
       - name: Prepare Laravel
-        run: |
-          docker compose exec -T frankenphp php artisan key:generate
-          docker compose exec -T frankenphp php artisan migrate --force
+        run: docker compose exec -T frankenphp php artisan migrate --force
 
       - name: Execute Test Suite (Pest/PHPUnit)
         run: docker compose exec -T frankenphp php artisan test
@@ -45,3 +45,48 @@ jobs:
       - name: Tear Down
         if: always()
         run: docker compose down -v
+
+  # ==========================================
+  # JOB 2: Test Production Environment
+  # ==========================================
+  test-prod:
+    name: Production Build & Boot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare Environment
+        run: |
+          cp .env.example .env
+          echo "APP_KEY=${{ secrets.APP_KEY }}" >> .env
+          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
+          echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
+
+      - name: Boot Prod Architecture
+        # Target the specific production YAML
+        run: docker compose -f docker-compose.prod.yml up -d --build
+
+      - name: Wait for MySQL to Initialize
+        run: |
+          echo "Waiting for MySQL to be ready..."
+          while ! docker compose -f docker-compose.prod.yml exec -T mysql mysqladmin ping -h"localhost" --silent; do
+              sleep 2
+          done
+
+      - name: Verify Production Database Connection
+        run: docker compose -f docker-compose.prod.yml exec -T frankenphp php artisan migrate --force
+
+      - name: Verify Web Server HTTP Response
+        run: |
+          # Give Octane a few seconds to fully boot and bind to port 80
+          sleep 5 
+          
+          # Curl the API. The -f flag forces curl to fail (exit 1) if the HTTP status is >= 400
+          curl -f http://localhost || (echo "HTTP Check Failed: App is crashing on boot" && exit 1)
+
+      - name: Tear Down Prod
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
