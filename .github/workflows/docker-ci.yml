@@ -1,0 +1,40 @@
+name: Laravel Docker CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Prepare Environment
+      run: cp .env.example .env
+
+    - name: Boot the Architecture
+      run: docker compose up -d --build
+
+    - name: Wait for MySQL to Initialize
+      run: |
+        echo "Waiting for MySQL to be ready..."
+        while ! docker compose exec -T mysql mysqladmin ping -h"localhost" --silent; do
+            sleep 2
+        done
+
+    - name: Prepare Laravel
+      run: |
+        docker compose exec -T frankenphp php artisan key:generate
+        docker compose exec -T frankenphp php artisan migrate --force
+
+    - name: Execute Test Suite (Pest/PHPUnit)
+      run: docker compose exec -T frankenphp php artisan test
+
+    - name: Tear Down
+      if: always()
+      run: docker compose down -v
