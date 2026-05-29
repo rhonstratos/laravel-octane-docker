@@ -16,6 +16,8 @@ services:
       - /app/vendor 
       # 3. Prevent the host's node_modules folder from overwriting the container's
       - /app/node_modules
+      # 4. Prevent host's cached packages.php from referencing dev-only packages not installed in container
+      - /app/bootstrap/cache
     ports:
       - "80:80"
       - "443:443"
