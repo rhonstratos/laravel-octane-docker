@@ -2,107 +2,108 @@
 # Services: FrankenPHP (Octane app), MySQL, Redis
 name: laravel-api
 services:
-  # FrankenPHP with Octane (high-performance PHP server)
-  frankenphp:
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile
-    container_name: frankenphp_container
-    restart: unless-stopped
-    volumes:
-      # 1. Mount the ENTIRE project so everything syncs instantly (config, database, public, etc.)
-      - .:/app 
-      # 2. Prevent the host's vendor folder from overwriting the container's compiled Linux binaries
-      - /app/vendor 
-      # 3. Prevent the host's node_modules folder from overwriting the container's
-      - /app/node_modules
-      # 4. Prevent host's cached packages.php from referencing dev-only packages not installed in container
-      - /app/bootstrap/cache
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp" # Required for HTTP/3
-    environment:
-      APP_ENV: ${APP_ENV:-local}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
-      DB_HOST: mysql
-      REDIS_HOST: redis
-      QUEUE_CONNECTION: redis
-    env_file:
-      - .env
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy 
-    networks:
-      - app_network
-    command: --watch
+    # FrankenPHP with Octane (high-performance PHP server)
+    frankenphp:
+        build:
+            context: .
+            dockerfile: ./docker/Dockerfile
+        container_name: frankenphp_container
+        restart: unless-stopped
+        volumes:
+            # 1. Mount the ENTIRE project so everything syncs instantly (config, database, public, etc.)
+            - .:/app
+            # 2. Prevent the host's vendor folder from overwriting the container's compiled Linux binaries
+            - /app/vendor
+            # 3. Prevent the host's node_modules folder from overwriting the container's
+            - /app/node_modules
+            # 4. Prevent host's cached packages.php from referencing dev-only packages not installed in container
+            - /app/bootstrap/cache
+        ports:
+            - "80:80"
+            - "443:443"
+            - "443:443/udp" # Required for HTTP/3
+        environment:
+            APP_ENV: ${APP_ENV:-local}
+            APP_DEBUG: ${APP_DEBUG:-false}
+            APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+            DB_HOST: mysql
+            REDIS_HOST: redis
+            QUEUE_CONNECTION: redis
+            SESSION_DRIVER: redis
+        env_file:
+            - .env
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - app_network
+        command: --watch
 
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin_container
-    restart: unless-stopped
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: ${DB_USERNAME:-laravel}
-      PMA_PASSWORD: ${DB_PASSWORD:-secret}
-    ports:
-      - "8888:80"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    networks:
-      - app_network
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin
+        container_name: phpmyadmin_container
+        restart: always
+        environment:
+            PMA_HOST: mysql
+            PMA_PORT: 3306
+            PMA_USER: ${DB_USERNAME:-laravel}
+            PMA_PASSWORD: ${DB_PASSWORD:-secret}
+        ports:
+            - "8888:80"
+        depends_on:
+            mysql:
+                condition: service_healthy
+        networks:
+            - app_network
 
-  # MySQL database
-  mysql:
-    image: 'mysql:8.4'
-    container_name: mysql_container
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${DB_DATABASE:-homestead}
-      MYSQL_USER: ${DB_USERNAME:-laravel}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./init-scripts:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "3306:3306" 
-    networks:
-      - app_network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    # MySQL database
+    mysql:
+        image: "mysql:8.4"
+        container_name: mysql_container
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+            MYSQL_DATABASE: ${DB_DATABASE:-homestead}
+            MYSQL_USER: ${DB_USERNAME:-laravel}
+            MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+        volumes:
+            - mysql_data:/var/lib/mysql
+            - ./init-scripts:/docker-entrypoint-initdb.d:ro
+        ports:
+            - "3306:3306"
+        networks:
+            - app_network
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
-  # Redis for caching and queues
-  redis:
-    image: 'redis:7-alpine'
-    container_name: redis_container
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    ports:
-      - "6379:6379"
-    networks:
-      - app_network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    # Redis for caching and queues
+    redis:
+        image: "redis:7-alpine"
+        container_name: redis_container
+        restart: always
+        volumes:
+            - redis_data:/data
+        ports:
+            - "6379:6379"
+        networks:
+            - app_network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
 volumes:
-  mysql_data:
-    driver: local
-  redis_data:
-    driver: local
+    mysql_data:
+        driver: local
+    redis_data:
+        driver: local
 
 networks:
-  app_network:
-    driver: bridge
+    app_network:
+        driver: bridge

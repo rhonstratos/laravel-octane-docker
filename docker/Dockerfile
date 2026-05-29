@@ -14,10 +14,11 @@ RUN install-php-extensions \
     curl \
     mbstring \
     zip \
-    xml \ 
+    xml \
     gd \
     intl \
-    opcache
+    opcache \
+    redis
 
 # 4. Grab Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -37,8 +38,8 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-d
 COPY . .
 
 # 8. Generate autoloader and fix permissions
-RUN composer dump-autoload --optimize
-RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
+RUN composer dump-autoload --optimize && \
+    chown -R www-data:www-data /app/storage /app/bootstrap/cache
 
 # 9. Set the base Octane command
 ENTRYPOINT ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=80" , "--max-requests=500", "--workers=1"]

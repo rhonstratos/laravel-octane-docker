@@ -30,7 +30,7 @@ RUN install-php-extensions \
     curl \
     mbstring \
     zip \
-    xml \ 
+    xml \
     gd \
     intl \
     opcache \
