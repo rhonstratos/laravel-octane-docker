@@ -32,7 +32,7 @@ RUN pnpm install
 
 # 6. Copy Composer files and install dependencies NEXT (Caches the vendor layer)
 COPY composer.json composer.lock ./
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --no-scripts
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
 
 # 7. Copy the rest of the application code
 COPY . .
