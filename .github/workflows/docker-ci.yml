@@ -26,8 +26,13 @@ jobs:
           sed -i "s#^DB_PASSWORD=.*#DB_PASSWORD=${{ secrets.DB_PASSWORD }}#" .env
           sed -i "s#^DB_ROOT_PASSWORD=.*#DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}#" .env
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
       - name: Build dev image with cache
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker/Dockerfile
@@ -80,8 +85,13 @@ jobs:
           sed -i "s#^DB_PASSWORD=.*#DB_PASSWORD=${{ secrets.DB_PASSWORD }}#" .env
           sed -i "s#^DB_ROOT_PASSWORD=.*#DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}#" .env
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+
       - name: Build prod image with cache
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./docker/Dockerfile.prod
