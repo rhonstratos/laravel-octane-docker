@@ -7,6 +7,7 @@ services:
         build:
             context: .
             dockerfile: ./docker/Dockerfile
+        image: laravel-api-app
         container_name: frankenphp_container
         restart: unless-stopped
         volumes:
@@ -14,22 +15,21 @@ services:
             - .:/app
             # 2. Prevent the host's vendor folder from overwriting the container's compiled Linux binaries
             - /app/vendor
-            # 3. Prevent the host's node_modules folder from overwriting the container's
-            - /app/node_modules
-            # 4. Prevent host's cached packages.php from referencing dev-only packages not installed in container
+            # 3. Prevent host's cached packages.php from referencing dev-only packages not installed in container
             - /app/bootstrap/cache
+            # 4. Mount custom Caddyfile for compression and security headers
+            - ./docker/Caddyfile:/etc/caddy/Caddyfile
         ports:
             - "80:80"
-            - "443:443"
-            - "443:443/udp" # Required for HTTP/3
         environment:
             APP_ENV: ${APP_ENV:-local}
-            APP_DEBUG: ${APP_DEBUG:-false}
+            APP_DEBUG: ${APP_DEBUG:-true}
             APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
             DB_HOST: mysql
             REDIS_HOST: redis
             QUEUE_CONNECTION: redis
             SESSION_DRIVER: redis
+            CADDY_FILE: /etc/caddy/Caddyfile
         env_file:
             - .env
         depends_on:
@@ -39,7 +39,59 @@ services:
                 condition: service_healthy
         networks:
             - app_network
-        command: --watch
+        command: octane:frankenphp --host=0.0.0.0 --port=80 --max-requests=500 --workers=auto --watch
+
+    queue-worker:
+        image: laravel-api-app
+        entrypoint: ["php", "artisan"]
+        container_name: queue_worker_container
+        restart: unless-stopped
+        volumes:
+            - .:/app
+            - /app/vendor
+            - /app/bootstrap/cache
+        env_file:
+            - .env
+        environment:
+            APP_ENV: ${APP_ENV:-local}
+            APP_DEBUG: ${APP_DEBUG:-true}
+            DB_HOST: mysql
+            REDIS_HOST: redis
+            QUEUE_CONNECTION: redis
+            SESSION_DRIVER: redis
+        command: queue:work redis --sleep=3 --tries=3
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - app_network
+
+    scheduler:
+        image: laravel-api-app
+        entrypoint: ["php", "artisan"]
+        container_name: scheduler_container
+        restart: unless-stopped
+        volumes:
+            - .:/app
+            - /app/vendor
+            - /app/bootstrap/cache
+        env_file:
+            - .env
+        environment:
+            APP_ENV: ${APP_ENV:-local}
+            APP_DEBUG: ${APP_DEBUG:-true}
+            DB_HOST: mysql
+            REDIS_HOST: redis
+        command: schedule:work
+        depends_on:
+            mysql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        networks:
+            - app_network
 
     phpmyadmin:
         image: phpmyadmin/phpmyadmin
@@ -70,9 +122,6 @@ services:
             MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
         volumes:
             - mysql_data:/var/lib/mysql
-            - ./init-scripts:/docker-entrypoint-initdb.d:ro
-        ports:
-            - "3306:3306"
         networks:
             - app_network
         healthcheck:
@@ -88,8 +137,6 @@ services:
         restart: always
         volumes:
             - redis_data:/data
-        ports:
-            - "6379:6379"
         networks:
             - app_network
         healthcheck:

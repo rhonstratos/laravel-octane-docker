@@ -42,4 +42,5 @@ RUN composer dump-autoload --optimize && \
     chown -R www-data:www-data /app/storage /app/bootstrap/cache
 
 # 9. Set the base Octane command
-ENTRYPOINT ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=80" , "--max-requests=500", "--workers=1"]
+ENTRYPOINT ["php", "artisan"]
+CMD ["octane:frankenphp", "--host=0.0.0.0", "--port=80", "--max-requests=500", "--workers=auto"]

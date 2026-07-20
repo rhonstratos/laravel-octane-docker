@@ -6,20 +6,20 @@ services:
     build:
       context: .
       dockerfile: ./docker/Dockerfile.prod
+    image: laravel-api-app
     container_name: laravel_api_prod
     restart: always
     ports:
       - "80:80"
-      - "443:443"
-      - "443:443/udp"
     environment:
-      APP_ENV: production
+      APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: false
       DB_HOST: mysql
       REDIS_HOST: redis
       QUEUE_CONNECTION: redis
       CACHE_DRIVER: redis
-      SESSION_DRIVER: mysql
+      SESSION_DRIVER: redis
+      CADDY_FILE: /etc/caddy/Caddyfile
       #LOG_CHANNEL: stderr
       # NOTE: In actual production, pass APP_KEY and passwords via GitHub Secrets, not hardcoded!
     env_file:
@@ -31,7 +31,57 @@ services:
         condition: service_healthy
     networks:
       - app_network
-    command: --max-requests=1000
+    command: octane:frankenphp --host=0.0.0.0 --port=80 --max-requests=1000 --workers=auto
+    healthcheck:
+      test: ["CMD", "php", "artisan", "octane:status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  queue-worker:
+    image: laravel-api-app
+    entrypoint: ["php", "artisan"]
+    container_name: queue_worker_prod
+    restart: always
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: false
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+    command: queue:work redis --sleep=3 --tries=3
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  scheduler:
+    image: laravel-api-app
+    entrypoint: ["php", "artisan"]
+    container_name: scheduler_prod
+    restart: always
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: false
+      DB_HOST: mysql
+      REDIS_HOST: redis
+    command: schedule:work
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app_network
 
   mysql:
     image: "mysql:8.4"

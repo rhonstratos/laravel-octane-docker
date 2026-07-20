@@ -1,11 +1,23 @@
 # ==========================================
 # STAGE 1: Build PHP Dependencies
 # ==========================================
-FROM composer:2 AS vendor
+FROM dunglas/frankenphp AS vendor
 WORKDIR /app
+RUN install-php-extensions \
+    pcntl \
+    pdo_mysql \
+    curl \
+    mbstring \
+    zip \
+    xml \
+    gd \
+    intl \
+    opcache \
+    redis
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json composer.lock ./
 # Install without dev dependencies or scripts
-RUN composer install --no-interaction --prefer-dist --ignore-platform-reqs --no-dev --no-scripts
+RUN composer install --no-interaction --prefer-dist --no-dev --no-scripts
 
 # ==========================================
 # STAGE 2: Build Frontend Assets
@@ -38,6 +50,9 @@ RUN install-php-extensions \
 
 WORKDIR /app
 
+# Copy custom Caddyfile for compression and security headers
+COPY ./docker/Caddyfile /etc/caddy/Caddyfile
+
 # Copy application files securely into the image
 COPY . .
 
@@ -59,4 +74,5 @@ RUN php artisan config:cache && \
 RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
 
 # Boot Octane in production mode (No --watch flag!)
-ENTRYPOINT ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=80"]
+ENTRYPOINT ["php", "artisan"]
+CMD ["octane:frankenphp", "--host=0.0.0.0", "--port=80", "--max-requests=500", "--workers=auto"]
