@@ -111,6 +111,12 @@ jobs:
               sleep 2
           done
 
+      - name: Cache Laravel config at runtime
+        run: |
+          docker compose -f docker-compose.prod.yml exec -T frankenphp php artisan config:cache
+          docker compose -f docker-compose.prod.yml exec -T frankenphp php artisan route:cache
+          docker compose -f docker-compose.prod.yml exec -T frankenphp php artisan view:cache
+
       - name: Verify Production Database Connection
         run: docker compose -f docker-compose.prod.yml exec -T frankenphp php artisan migrate --force
 
