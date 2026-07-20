@@ -20,11 +20,11 @@ jobs:
       - name: Prepare Environment
         run: |
           cp .env.example .env
-          echo "APP_KEY=${{ secrets.APP_KEY }}" >> .env
-          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
-          echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
+          sed -i "s/^APP_KEY=.*/APP_KEY=${{ secrets.APP_KEY }}/" .env
+          sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/" .env
+          sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/" .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/" .env
+          sed -i "s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}/" .env
 
       - name: Build dev image with cache
         uses: docker/build-push-action@v6
@@ -74,20 +74,11 @@ jobs:
       - name: Prepare Environment
         run: |
           cp .env.example .env
-
-          # 1. Delete the dummy placeholder lines so they don't block your secrets
-          sed -i '/^APP_KEY=/d' .env
-          sed -i '/^DB_DATABASE=/d' .env
-          sed -i '/^DB_USERNAME=/d' .env
-          sed -i '/^DB_PASSWORD=/d' .env
-          sed -i '/^DB_ROOT_PASSWORD=/d' .env
-
-          # 2. Append your actual repository secrets safely to the bottom
-          echo "APP_KEY=${{ secrets.APP_KEY }}" >> .env
-          echo "DB_DATABASE=${{ secrets.DB_DATABASE }}" >> .env
-          echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
-          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> .env
+          sed -i "s/^APP_KEY=.*/APP_KEY=${{ secrets.APP_KEY }}/" .env
+          sed -i "s/^DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/" .env
+          sed -i "s/^DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/" .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/" .env
+          sed -i "s/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}/" .env
 
       - name: Build prod image with cache
         uses: docker/build-push-action@v6
